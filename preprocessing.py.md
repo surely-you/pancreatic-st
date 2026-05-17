@@ -122,6 +122,11 @@ This final step projects the high-dimensional gene data into a lower-dimensional
 * **UMAP**(Uniform Manifold Approximation and Projection): A 2D visualization of the high-dimensional relationships.
 * **Spatial Neighbors**: use squidpy to build a graph based on the physical $(x, y)$ coordinates of the spots on the slide.
   * Essential for identifying spatial patterns, such as cellular niches, tissue boundaries, or ligand-receptor interactions between neighboring cells.
+ 
+**note (error)**: _sq.gr.spatial_neighbors(adata, coord_type="visium")_: visium isnt a valid parameter for coord type (outdated?) use one of the following (likely grid with visium)
+* grid: For data where spots are in a regular, repeating pattern (like Visium's hexagonal grid).
+* generic: For data with irregular coordinates (like single-cell spatial data where cells are scattered randomly).
+    sq.gr.spatial_neighbors(adata, coord_type="grid")
 ```
 # ── Normalization & Embedding ─────────────────────────────────────────────────
 def normalize_and_embed(adata: ad.AnnData) -> ad.AnnData:
