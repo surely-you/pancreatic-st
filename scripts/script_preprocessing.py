@@ -17,12 +17,12 @@ import matplotlib.pyplot as plt
 # ── Config ───────────────────────────────────────────────────────────────────
 SAMPLE_MANIFEST = {
     # accession : (path, disease_stage)
-    "GSM7421790"  : ("GSM7421790",  "IPMN"),
-    "GSM8443449"  : ("GSM8443449",  "Primary_PDAC"),
-    "GSM8452857"  : ("GSM8452857",  "Metastasis"),
+    "GSM7421790"  : ("data/GSM7421790",  "IPMN"),
+    "GSM8443449"  : ("data/GSM8443449",  "Primary_PDAC"),
+    "GSM8452857"  : ("data/GSM8452857",  "Metastasis"),
 }
-OUTPUT_DIR   = "data/processed"
-FIGURE_DIR   = "figures/qc"
+OUTPUT_DIR   = "/data/processed"
+FIGURE_DIR   = "G:/My Drive/ongkeko/CRC project"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(FIGURE_DIR, exist_ok=True)
 
@@ -39,7 +39,7 @@ def load_sample(sample_id: str, path: str, stage: str) -> ad.AnnData:
     if path.endswith(".h5ad"):
         adata = sc.read_h5ad(path)
     else:
-        adata = sc.read_visium(path)
+        adata = sq.read.visium(path)
     adata.var_names_make_unique()
     adata.obs["sample_id"]     = sample_id
     adata.obs["disease_stage"] = stage
@@ -84,10 +84,10 @@ def normalize_and_embed(adata: ad.AnnData) -> ad.AnnData:
         adata, n_top_genes=3000, flavor="seurat_v3", layer="counts"
     )
     sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, n_comps=50, use_highly_variable=True)
+    sc.tl.pca(adata, n_comps=50, mask_var="highly_variable")
     sc.pp.neighbors(adata, n_neighbors=15, n_pcs=30)
     sc.tl.umap(adata)
-    sc.tl.leiden(adata, resolution=0.5)
+    sc.tl.leiden(adata, resolution=0.5, flavor='igraph', n_iterations=2, directed = False)
 
     # Spatial neighborhood graph (for downstream squidpy analyses)
     return adata
