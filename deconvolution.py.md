@@ -74,7 +74,12 @@ This code segment is the "Learning Phase" (Reference Signature Estimation) of th
 * **Negative Binomial distribution (NBD)**: probability distribution used to model count data
   * biological data is "noisy." In real tissue samples, we see that the variance is often much higher than the mean ($Var > Mean$). This is called **overdispersion**. The NB distribution adds a "dispersion parameter" that allows the model to stretch and account for this extra noise.
   * **The "Zero" Problem**: Count data is strictly non-negative, cuz u can't have $-5$ counts of a gene. NB handles the "long tail" of low-expression genes (where many spots have 0 counts) much better than a standard Bell Curve (Normal distribution).
-  * source (warning: contains very mathy math): https://www.datacamp.com/tutorial/negative-binomial-distribution 
+  * source (warning: contains very mathy math): https://www.datacamp.com/tutorial/negative-binomial-distribution
+ 
+*filter_genes*: 
+- **cell_count_cutoff**: A gene must be expressed in at least x cells (absolute count)
+- **cell_percentage_cutoff2**: A gene must be expressed in at least x% of cells in at least one cell type
+- **nonz_mean_cutoff**:  mean expression among cells that DO express the gene must be > x
 ```
 
 CELL_TYPE_COL   = "cell_type"    # column in sc_ref.obs with cell type labels
