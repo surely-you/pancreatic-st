@@ -23,19 +23,12 @@ FIGURE_DIR = "figures/integration"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(FIGURE_DIR, exist_ok=True)
 
-STAGE_ORDER = ["Normal", "PanIN", "IPMN", "Primary_PDAC", "Metastasis"]
+STAGE_ORDER = ["IPMN", "Primary_PDAC", "Metastasis"]
 
 SAMPLE_STAGES = {
-    "GSE254829"  : "PanIN",
-    "GSE233293"  : "IPMN",
-    "GSE327056"  : "Normal_PDAC",
-    "GSE274103"  : "Primary_PDAC",
-    "GSE310353"  : "Primary_PDAC",
-    "Syn61831984": "Primary_PDAC",
-    "GSE278694"  : "Primary_PDAC",
-    "GSE272362"  : "Metastasis",
-    "GSE274557"  : "Metastasis",
-    "10x_VisiumHD": "Primary_PDAC",
+    "GSM7421790"  : "IPMN",
+    "GSM8443449"  : "Primary_PDAC",
+    "GSM8452857"  : "Metastasis"
 }
 
 
@@ -45,6 +38,7 @@ def load_all_samples(deconv_dir: str) -> ad.AnnData:
     for sid, stage in SAMPLE_STAGES.items():
         p = f"{deconv_dir}/{sid}_deconvolved.h5ad"
         if not os.path.exists(p):
+            print("not found")
             p = f"data/processed/{sid}_processed.h5ad"  # fallback
         if not os.path.exists(p):
             print(f"  Warning: {sid} not found, skipping")
@@ -102,7 +96,7 @@ def integrate_scvi(adata: ad.AnnData) -> ad.AnnData:
         batch_key="sample_id",
     )
     model = scvi.model.SCVI(adata_scvi, n_layers=2, n_latent=30, gene_likelihood="nb")
-    model.train(max_epochs=400, early_stopping=True)
+    model.train(max_epochs=100, early_stopping=True) ##CHANGE BACK TO 400
     model.save("models/scvi_integration", overwrite=True)
 
     adata.obsm["X_scVI"] = model.get_latent_representation()
@@ -111,33 +105,13 @@ def integrate_scvi(adata: ad.AnnData) -> ad.AnnData:
     sc.tl.leiden(adata, resolution=0.5)
     return adata
 
-
-# ── Cluster annotation helpers ────────────────────────────────────────────────
-MARKER_GENES = {
-    "Ductal (malignant)" : ["KRT19", "EPCAM", "KRT8", "MUC1"],
-    "Ductal (normal)"    : ["KRT18", "CFTR", "SLC4A4"],
-    "Acinar"             : ["PRSS1", "CELA1", "REG1A"],
-    "Stellate/CAF"       : ["ACTA2", "FAP", "POSTN", "COL1A1"],
-    "Endothelial"        : ["PECAM1", "VWF", "CDH5"],
-    "Macrophage"         : ["CD68", "CD163", "MRC1"],
-    "T cell"             : ["CD3D", "CD8A", "CD4"],
-    "B cell"             : ["CD19", "MS4A1"],
-    "NK cell"            : ["NCAM1", "GNLY"],
-    "Neutrophil"         : ["S100A8", "S100A9", "FCGR3B"],
-    "Neural"             : ["S100B", "PLP1", "MPZ"],    # for perineural invasion
-}
-
 def annotate_clusters(adata: ad.AnnData) -> ad.AnnData:
-    sc.tl.rank_genes_groups(adata, groupby="leiden", method="wilcoxon", use_raw=True)
-    sc.pl.dotplot(adata, var_names=MARKER_GENES, groupby="leiden",
-                  save="_cluster_markers.png")
     return adata
-
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("Loading all samples...")
-    adata = load_all_samples("data/deconvolved")
+    adata = load_all_samples("data/processed") #CHANGE THIS BACK TO DECONVOLVED
 
     print("Renormalizing concatenated object...")
     adata = renormalize(adata)
@@ -162,3 +136,55 @@ if __name__ == "__main__":
     out = f"{OUTPUT_DIR}/pdac_atlas_integrated.h5ad"
     adata.write_h5ad(out)
     print(f"\nAtlas saved → {out}")
+
+
+'''
+# ── Cluster annotation helpers ────────────────────────────────────────────────
+MARKER_GENES = {
+    "Ductal (malignant)" : ["KRT19", "EPCAM", "KRT8", "MUC1"],
+    "Ductal (normal)"    : ["KRT18", "CFTR", "SLC4A4"],
+    "Acinar"             : ["PRSS1", "CELA1", "REG1A"],
+    "Stellate/CAF"       : ["ACTA2", "FAP", "POSTN", "COL1A1"],
+    "Endothelial"        : ["PECAM1", "VWF", "CDH5"],
+    "Macrophage"         : ["CD68", "CD163", "MRC1"],
+    "T cell"             : ["CD3D", "CD8A", "CD4"],
+    "B cell"             : ["CD19", "MS4A1"],
+    "NK cell"            : ["NCAM1", "GNLY"],
+    "Neutrophil"         : ["S100A8", "S100A9", "FCGR3B"],
+    "Neural"             : ["S100B", "PLP1", "MPZ"],    # for perineural invasion
+}
+
+def annotate_clusters(adata: ad.AnnData) -> ad.AnnData:
+    sc.tl.rank_genes_groups(
+        adata, 
+        groupby="leiden", 
+        method="wilcoxon", 
+        use_raw=True, 
+        flavor='igraph',
+        n_iterations=2,
+        directed=False)
+
+    missing_genes = [g for g in MARKER_GENES if g not in adata.var_names]
+    valid_genes = [g for g in MARKER_GENES if g in adata.var_names]
+    print(adata.var_names[:20])
+
+    if missing_genes:
+        print(f"Warning: {len(missing_genes)} gene(s) not found in adata and will be skipped:")
+        print(f"  Missing: {missing_genes}")
+
+    if not valid_genes:
+        print("Error: None of the MARKER_GENES were found in adata. Skipping dotplot.")
+    else:
+        print(f"Plotting {len(valid_genes)}/{len(MARKER_GENES)} genes.")
+        sc.pl.dotplot(
+            adata,
+            var_names=valid_genes,
+            groupby="leiden",
+            save="_cluster_markers.png",
+            flavor='igraph',
+            n_iterations=2,
+            directed=False
+        )
+
+    return adata
+'''

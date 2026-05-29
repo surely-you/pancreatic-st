@@ -98,7 +98,7 @@ def deconvolve_sample(adata: ad.AnnData, inf_aver: pd.DataFrame, sid: str) -> ad
     model.train(
         max_epochs=EPOCHS_SPATIAL,
         batch_size=None,
-        train_size=1,
+        train_size=1
     )
 
     adata = model.export_posterior(
