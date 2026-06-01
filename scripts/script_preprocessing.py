@@ -13,15 +13,21 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from pathlib import Path
+
 
 # ── Config ───────────────────────────────────────────────────────────────────
 SAMPLE_MANIFEST = {
     # accession : (path, disease_stage)
     "GSM7421790"  : ("data/GSM7421790",  "IPMN"),
-    "GSM8443449"  : ("data/GSM8443449",  "Primary_PDAC"),
+    "GSM8443449"  : ("data/GSE274103",  "Primary_PDAC"),
+    "GSM8443450"  : ("data/GSE274103",  "Primary_PDAC"),
+    "GSM8443451"  : ("data/GSE274103",  "Primary_PDAC"),
+    "GSM8443452"  : ("data/GSE274103",  "Primary_PDAC"),
+    "GSM8443453"  : ("data/GSE274103",  "Primary_PDAC"),
     "GSM8452857"  : ("data/GSM8452857",  "Metastasis"),
 }
-OUTPUT_DIR   = "/data/processed"
+OUTPUT_DIR   = "data/processed"
 FIGURE_DIR   = "G:/My Drive/ongkeko/CRC project"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(FIGURE_DIR, exist_ok=True)
@@ -96,8 +102,27 @@ def normalize_and_embed(adata: ad.AnnData) -> ad.AnnData:
 # ── Main ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     adatas = []
-    for sid, (path, stage) in SAMPLE_MANIFEST.items():
+
+    expanded_manifest = {}
+
+    for gse_id, (gse_path, stage) in SAMPLE_MANIFEST.items():
+
+        for gsm_dir in Path(gse_path).iterdir():
+            if (not gsm_dir.is_dir()) or (gsm_dir.name == 'spatial'):
+                continue
+            gsm_id = gsm_dir.name
+
+            expanded_manifest[gsm_id] = (
+                str(gsm_dir),
+                stage
+            )
+    print(expanded_manifest)
+
+    for sid, (path, stage) in expanded_manifest.items():
         print(f"\nProcessing {sid} [{stage}]...")
+        
+        print(path)
+
         adata = load_sample(sid, path, stage)
         adata = run_qc(adata)
         adata = normalize_and_embed(adata)
